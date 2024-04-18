@@ -14,17 +14,17 @@ import plg.utils.SetUtils;
  * This class contains the random generator of processes with impacts. Actually, this class
  * is responsible for the randomization of a process with impacts.
  *
- * @see plg.generator.process.ProcessGenerator
  * @author Claudio Tomzzoli
+ * @see plg.generator.process.ProcessGenerator
  */
-public class ProcessGenerator extends plg.generator.process.ProcessGenerator
-{
-    private ProcessWithImpacts process;
-    private RandomizationConfiguration parameterswi;
-    protected ProcessGenerator(ProcessWithImpacts processwi, RandomizationConfiguration parameters) {
-        super(processwi, parameters);
-        process = processwi;
-        parameterswi = parameters;
+public class ProcessGenerator extends plg.generator.process.ProcessGenerator {
+    private final ProcessWithImpacts process;
+    private final RandomizationConfiguration parameters;
+
+    protected ProcessGenerator(ProcessWithImpacts process, RandomizationConfiguration parameters) {
+        super(process, parameters);
+        this.process = process;
+        this.parameters = parameters;
     }
 
     /**
@@ -36,7 +36,7 @@ public class ProcessGenerator extends plg.generator.process.ProcessGenerator
      * <p> If the provided process is not empty, the new control-flow is added
      * to the existing process.
      *
-     * @param process the process to randomize
+     * @param process    the process to randomize
      * @param parameters the randomization parameters to use
      */
     public static void randomizeProcess(ProcessWithImpacts process, RandomizationConfiguration parameters) {
@@ -52,7 +52,7 @@ public class ProcessGenerator extends plg.generator.process.ProcessGenerator
         String activityName = askNewActivityName();
         Logger.instance().debug("New activity created (`" + activityName + "')");
         TaskWithImpacts t = process.newTask(activityName);
-        if (parameterswi.generateDataObject()) {
+        if (parameters.generateDataObject()) {
             newDataObject().setObjectOwner(t, SetUtils.getRandom(IDataObjectOwner.DATA_OBJECT_DIRECTION.values()));
         }
         return new PatternFrame(t);

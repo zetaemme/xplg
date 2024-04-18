@@ -18,8 +18,7 @@ import plg.model.gateway.Gateway;
 import plg.model.gateway.ParallelGateway;
 import plg.model.sequence.Sequence;
 
-public class ProcessWithImpacts extends Process
-{
+public class ProcessWithImpacts extends Process {
     public ProcessWithImpacts(String name) {
         super(name);
     }
@@ -51,8 +50,7 @@ public class ProcessWithImpacts extends Process
         }
         for (Task t : getTasks()) {
             Task c = p.newTask(t.getName());
-            if (t instanceof TaskWithImpacts)
-            {
+            if (t instanceof TaskWithImpacts) {
                 ((TaskWithImpacts) c).setImpacts(((TaskWithImpacts) t).getImpacts());
             }
             c.setComponentId(Integer.parseInt(t.getId()));
