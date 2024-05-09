@@ -29,21 +29,6 @@ public class TreeGenerator {
         return graph;
     }
 
-    public DirectedAcyclicGraph<UUID, DefaultEdge> generateRandomTree(int maxDepth) {
-        final DirectedAcyclicGraph<UUID, DefaultEdge> graph = new DirectedAcyclicGraph<>(DefaultEdge.class);
-        final UUID root = UUID.randomUUID();
-
-        final int previousMaxDepth = this.maxDepth;
-        this.maxDepth = maxDepth;
-
-        graph.addVertex(root);
-        generateChildren(graph, root, 0);
-
-        this.maxDepth = previousMaxDepth;
-
-        return graph;
-    }
-
     public DirectedAcyclicGraph<UUID, DefaultEdge> generateRandomTree(int maxDepth, int minFanOut) {
         final DirectedAcyclicGraph<UUID, DefaultEdge> graph = new DirectedAcyclicGraph<>(DefaultEdge.class);
         final UUID root = UUID.randomUUID();
@@ -242,13 +227,12 @@ public class TreeGenerator {
         return mergedTree;
     }
 
-    public DirectedAcyclicGraph<UUID, DefaultEdge> mergeGraphs(
+    private DirectedAcyclicGraph<UUID, DefaultEdge> mergeGraphs(
             DirectedAcyclicGraph<UUID, DefaultEdge> graph1,
             DirectedAcyclicGraph<UUID, DefaultEdge> graph2
     ) {
-        DirectedAcyclicGraph<UUID, DefaultEdge> mergedGraph = new DirectedAcyclicGraph<>(DefaultEdge.class);
+        final DirectedAcyclicGraph<UUID, DefaultEdge> mergedGraph = new DirectedAcyclicGraph<>(DefaultEdge.class);
 
-        // Add all vertices and edges from the first graph
         for (final UUID vertex : graph1.vertexSet()) {
             if (!mergedGraph.containsVertex(vertex)) {
                 mergedGraph.addVertex(vertex);
@@ -263,7 +247,6 @@ public class TreeGenerator {
             }
         }
 
-        // Add all vertices and edges from the second graph
         for (final UUID vertex : graph2.vertexSet()) {
             if (!mergedGraph.containsVertex(vertex)) {
                 mergedGraph.addVertex(vertex);
@@ -292,26 +275,29 @@ public class TreeGenerator {
         return seseNodes;
     }
 
-    public DirectedAcyclicGraph<UUID, DefaultEdge> expandTreeWithIndependentXOR(DirectedAcyclicGraph<UUID, DefaultEdge> graph) {
-        final List<UUID> seseNodes = this.getSeseNodes(graph);
-        final UUID selectedNode = seseNodes.get(randomDataGenerator.nextInt(0, seseNodes.size() - 1));
-
-        final DirectedAcyclicGraph<UUID, DefaultEdge> independentXORIn = this.generateRandomTree(1, 2);
-        final DirectedAcyclicGraph<UUID, DefaultEdge> independentXOROut = this.reverseEdges(independentXORIn);
-        final DirectedAcyclicGraph<UUID, DefaultEdge> independentXOR = this.mergeTrees(independentXORIn, independentXOROut);
-
-        return this.attachXORRegion(graph, independentXOR, selectedNode);
+    public DirectedAcyclicGraph<UUID, DefaultEdge> generateNestedXORRegion() {
+        final DirectedAcyclicGraph<UUID, DefaultEdge> regionIn = this.generateRandomTree();
+        final DirectedAcyclicGraph<UUID, DefaultEdge> regionOut = this.reverseEdges(regionIn);
+        return this.mergeTrees(regionIn, regionOut);
     }
 
-    public DirectedAcyclicGraph<UUID, DefaultEdge> attachXORRegion(
-            DirectedAcyclicGraph<UUID, DefaultEdge> process,
-            DirectedAcyclicGraph<UUID, DefaultEdge> xor,
-            UUID selectedNode
-    ) {
-        final UUID regionStart = this.getNodesWithZeroInDegree(xor).get(0);
-        final UUID regionEnd = this.getNodesWithZeroOutDegree(xor).get(0);
+    public DirectedAcyclicGraph<UUID, DefaultEdge> generateIndependentXORRegion() {
+        final DirectedAcyclicGraph<UUID, DefaultEdge> regionIn = this.generateRandomTree(1, 2);
+        final DirectedAcyclicGraph<UUID, DefaultEdge> regionOut = this.reverseEdges(regionIn);
+        return this.mergeTrees(regionIn, regionOut);
+    }
 
-        final DirectedAcyclicGraph<UUID, DefaultEdge> updatedGraph = this.mergeGraphs(process, xor);
+    public DirectedAcyclicGraph<UUID, DefaultEdge> attach(
+            DirectedAcyclicGraph<UUID, DefaultEdge> graph1,
+            DirectedAcyclicGraph<UUID, DefaultEdge> graph2
+    ) {
+        final List<UUID> seseNodes = this.getSeseNodes(graph1);
+        final UUID selectedNode = seseNodes.get(randomDataGenerator.nextInt(0, seseNodes.size() - 1));
+
+        final UUID regionStart = this.getNodesWithZeroInDegree(graph2).get(0);
+        final UUID regionEnd = this.getNodesWithZeroOutDegree(graph2).get(0);
+
+        final DirectedAcyclicGraph<UUID, DefaultEdge> updatedGraph = this.mergeGraphs(graph1, graph2);
 
         for (final UUID node : updatedGraph.vertexSet()) {
             if (node == selectedNode) {
