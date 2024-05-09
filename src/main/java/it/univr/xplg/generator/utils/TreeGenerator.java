@@ -11,7 +11,7 @@ import java.util.stream.Collectors;
 public class TreeGenerator {
     private final RandomDataGenerator randomDataGenerator;
     private final int fanOut;
-    private final int maxDepth;
+    private int maxDepth;
 
     public TreeGenerator(int fanOut, int maxDepth) {
         this.randomDataGenerator = new RandomDataGenerator();
@@ -29,6 +29,36 @@ public class TreeGenerator {
         return graph;
     }
 
+    public DirectedAcyclicGraph<UUID, DefaultEdge> generateRandomTree(int maxDepth) {
+        final DirectedAcyclicGraph<UUID, DefaultEdge> graph = new DirectedAcyclicGraph<>(DefaultEdge.class);
+        final UUID root = UUID.randomUUID();
+
+        final int previousMaxDepth = this.maxDepth;
+        this.maxDepth = maxDepth;
+
+        graph.addVertex(root);
+        generateChildren(graph, root, 0);
+
+        this.maxDepth = previousMaxDepth;
+
+        return graph;
+    }
+
+    public DirectedAcyclicGraph<UUID, DefaultEdge> generateRandomTree(int maxDepth, int minFanOut) {
+        final DirectedAcyclicGraph<UUID, DefaultEdge> graph = new DirectedAcyclicGraph<>(DefaultEdge.class);
+        final UUID root = UUID.randomUUID();
+
+        final int previousMaxDepth = this.maxDepth;
+        this.maxDepth = maxDepth;
+
+        graph.addVertex(root);
+        generateChildren(graph, root, 0, minFanOut);
+
+        this.maxDepth = previousMaxDepth;
+
+        return graph;
+    }
+
     private void generateChildren(DirectedAcyclicGraph<UUID, DefaultEdge> graph, UUID parent, int depth) {
         if (depth >= maxDepth) {
             return;
@@ -41,6 +71,21 @@ public class TreeGenerator {
             graph.addEdge(parent, child);
 
             generateChildren(graph, child, depth + 1);
+        }
+    }
+
+    private void generateChildren(DirectedAcyclicGraph<UUID, DefaultEdge> graph, UUID parent, int depth, int minFanOut) {
+        if (depth >= maxDepth) {
+            return;
+        }
+
+        int childrenCount = randomDataGenerator.nextInt(minFanOut, fanOut);
+        for (int i = 0; i < childrenCount; i++) {
+            final UUID child = UUID.randomUUID();
+            graph.addVertex(child);
+            graph.addEdge(parent, child);
+
+            generateChildren(graph, child, depth + 1, minFanOut);
         }
     }
 
@@ -195,5 +240,98 @@ public class TreeGenerator {
         }
 
         return mergedTree;
+    }
+
+    public DirectedAcyclicGraph<UUID, DefaultEdge> mergeGraphs(
+            DirectedAcyclicGraph<UUID, DefaultEdge> graph1,
+            DirectedAcyclicGraph<UUID, DefaultEdge> graph2
+    ) {
+        DirectedAcyclicGraph<UUID, DefaultEdge> mergedGraph = new DirectedAcyclicGraph<>(DefaultEdge.class);
+
+        // Add all vertices and edges from the first graph
+        for (final UUID vertex : graph1.vertexSet()) {
+            if (!mergedGraph.containsVertex(vertex)) {
+                mergedGraph.addVertex(vertex);
+            }
+        }
+
+        for (final DefaultEdge edge : graph1.edgeSet()) {
+            final UUID source = graph1.getEdgeSource(edge);
+            final UUID target = graph1.getEdgeTarget(edge);
+            if (!mergedGraph.containsEdge(source, target)) {
+                mergedGraph.addEdge(source, target);
+            }
+        }
+
+        // Add all vertices and edges from the second graph
+        for (final UUID vertex : graph2.vertexSet()) {
+            if (!mergedGraph.containsVertex(vertex)) {
+                mergedGraph.addVertex(vertex);
+            }
+        }
+        for (final DefaultEdge edge : graph2.edgeSet()) {
+            final UUID source = graph2.getEdgeSource(edge);
+            final UUID target = graph2.getEdgeTarget(edge);
+            if (!mergedGraph.containsEdge(source, target)) {
+                mergedGraph.addEdge(source, target);
+            }
+        }
+
+        return mergedGraph;
+    }
+
+    // FIXME: This methods will be renamed to getTasks
+    public List<UUID> getSeseNodes(DirectedAcyclicGraph<UUID, DefaultEdge> graph) {
+        final List<UUID> seseNodes = new ArrayList<>();
+        for (final UUID node : graph.vertexSet()) {
+            if (graph.inDegreeOf(node) == 1 && graph.outDegreeOf(node) == 1) {
+                seseNodes.add(node);
+            }
+        }
+
+        return seseNodes;
+    }
+
+    public DirectedAcyclicGraph<UUID, DefaultEdge> expandTreeWithIndependentXOR(DirectedAcyclicGraph<UUID, DefaultEdge> graph) {
+        final List<UUID> seseNodes = this.getSeseNodes(graph);
+        final UUID selectedNode = seseNodes.get(randomDataGenerator.nextInt(0, seseNodes.size() - 1));
+
+        final DirectedAcyclicGraph<UUID, DefaultEdge> independentXORIn = this.generateRandomTree(1, 2);
+        final DirectedAcyclicGraph<UUID, DefaultEdge> independentXOROut = this.reverseEdges(independentXORIn);
+        final DirectedAcyclicGraph<UUID, DefaultEdge> independentXOR = this.mergeTrees(independentXORIn, independentXOROut);
+
+        return this.attachXORRegion(graph, independentXOR, selectedNode);
+    }
+
+    public DirectedAcyclicGraph<UUID, DefaultEdge> attachXORRegion(
+            DirectedAcyclicGraph<UUID, DefaultEdge> process,
+            DirectedAcyclicGraph<UUID, DefaultEdge> xor,
+            UUID selectedNode
+    ) {
+        final UUID regionStart = this.getNodesWithZeroInDegree(xor).get(0);
+        final UUID regionEnd = this.getNodesWithZeroOutDegree(xor).get(0);
+
+        final DirectedAcyclicGraph<UUID, DefaultEdge> updatedGraph = this.mergeGraphs(process, xor);
+
+        for (final UUID node : updatedGraph.vertexSet()) {
+            if (node == selectedNode) {
+                final DefaultEdge outgoingEdge = (DefaultEdge) updatedGraph.outgoingEdgesOf(node).toArray()[0];
+                final DefaultEdge incomingEdge = (DefaultEdge) updatedGraph.incomingEdgesOf(node).toArray()[0];
+
+                final UUID selectedNodeParent = updatedGraph.getEdgeSource(incomingEdge);
+                final UUID selectedNodeChild = updatedGraph.getEdgeTarget(outgoingEdge);
+
+                updatedGraph.removeEdge(incomingEdge);
+                updatedGraph.removeEdge(outgoingEdge);
+                updatedGraph.removeVertex(selectedNode);
+
+                updatedGraph.addEdge(selectedNodeParent, regionStart);
+                updatedGraph.addEdge(regionEnd, selectedNodeChild);
+
+                break;
+            }
+        }
+
+        return updatedGraph;
     }
 }
