@@ -27,16 +27,36 @@
 
     <dependencies>
         <dependency>
-         <groupId>com.github.delas</groupId>
+            <groupId>com.github.delas</groupId>
             <artifactId>libPlg</artifactId>
-         <version>0.0.10</version>
+            <version>0.0.10</version>
         </dependency>
+
         <dependency>
             <groupId>info.picocli</groupId>
             <artifactId>picocli</artifactId>
             <version>4.6.2</version>
         </dependency>
+
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-math3</artifactId>
+            <version>3.6.1</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.jgrapht</groupId>
+            <artifactId>jgrapht-core</artifactId>
+            <version>1.5.2</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.jgrapht</groupId>
+            <artifactId>jgrapht-io</artifactId>
+            <version>1.5.2</version>
+        </dependency>
     </dependencies>
+
     <build>
         <resources>
             <resource>
@@ -46,7 +66,7 @@
         <plugins>
             <plugin>
                 <artifactId>maven-assembly-plugin</artifactId>
-                <version>1.1.1</version>
+                <version>3.7.1</version>
                 <configuration>
                     <archive>
                         <manifest>
