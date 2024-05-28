@@ -1,6 +1,7 @@
 package it.univr.xplg.generator.process;
 
 import it.univr.xplg.generator.configuration.GenerationConfiguration;
+import it.univr.xplg.generator.utils.TreeConverter;
 import it.univr.xplg.generator.utils.TreeGenerator;
 import it.univr.xplg.model.ProcessWithImpacts;
 import org.jgrapht.graph.DefaultEdge;
@@ -29,17 +30,16 @@ public class RandomProcessGenerator extends plg.generator.process.ProcessGenerat
 
     protected void begin(GenerationConfiguration parameters) {
         Logger.instance().info("Starting process generation");
-        final TreeGenerator treeGenerator = new TreeGenerator(parameters.getMaxFanOut(), parameters.getMaxDepth());
+        final TreeGenerator generator = new TreeGenerator(parameters.getMaxFanOut(), parameters.getMaxDepth());
 
-        final DirectedAcyclicGraph<UUID, DefaultEdge> nestedXORs = generateNestedXORs(treeGenerator);
+        final DirectedAcyclicGraph<UUID, DefaultEdge> nestedXORRegion = generator.generateNestedXORRegion();
+        final DirectedAcyclicGraph<UUID, DefaultEdge> independentXORRegion = generator.generateIndependentXORRegion();
+
+        final DirectedAcyclicGraph<UUID, DefaultEdge> seseRegion = generator.attach(nestedXORRegion, independentXORRegion);
+
+        final TreeConverter converter = new TreeConverter(seseRegion);
+        converter.toBPMN("region.bpmn");
 
         Logger.instance().info("Process generation completed");
-    }
-
-    private DirectedAcyclicGraph<UUID, DefaultEdge> generateNestedXORs(TreeGenerator treeGenerator) {
-        final DirectedAcyclicGraph<UUID, DefaultEdge> seseIn = treeGenerator.generateRandomTree();
-        final DirectedAcyclicGraph<UUID, DefaultEdge> seseOut = treeGenerator.reverseEdges(seseIn);
-
-        return treeGenerator.mergeTrees(seseIn, seseOut);
     }
 }
