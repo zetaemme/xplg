@@ -11,6 +11,7 @@ import java.util.stream.Collectors;
 public class TreeGenerator {
     private final RandomDataGenerator randomDataGenerator;
     private final int fanOut;
+    private final Map<UUID, Boolean> isTask = new HashMap<>();
     private int maxDepth;
 
     public TreeGenerator(int fanOut, int maxDepth) {
@@ -210,7 +211,7 @@ public class TreeGenerator {
                         Function.identity(),
                         node -> tree2.incomingEdgesOf(node).parallelStream()
                                 .map(tree2::getEdgeSource)
-                                .collect(Collectors.toList())
+                                .toList()
                 ));
 
         this.addNodesAndEdgesWithNonZeroInDegree(mergedTree, tree2);
@@ -263,7 +264,6 @@ public class TreeGenerator {
         return mergedGraph;
     }
 
-    // FIXME: This methods will be renamed to getTasks
     public List<UUID> getSeseNodes(DirectedAcyclicGraph<UUID, DefaultEdge> graph) {
         final List<UUID> seseNodes = new ArrayList<>();
         for (final UUID node : graph.vertexSet()) {
@@ -319,5 +319,48 @@ public class TreeGenerator {
         }
 
         return updatedGraph;
+    }
+
+    public void markNodes(DirectedAcyclicGraph<UUID, DefaultEdge> graph) {
+        for (final UUID node : graph.vertexSet()) {
+            if (graph.inDegreeOf(node) == 1 && graph.outDegreeOf(node) == 1) {
+                isTask.put(node, true);
+            } else {
+                isTask.put(node, false);
+            }
+        }
+    }
+
+    public UUID getRandomTask(DirectedAcyclicGraph<UUID, DefaultEdge> graph) {
+        final List<UUID> tasks = this.getSeseNodes(graph);
+        return tasks.get(randomDataGenerator.nextInt(0, tasks.size() - 1));
+    }
+
+    public void removeNode(DirectedAcyclicGraph<UUID, DefaultEdge> graph, UUID nodeToRemove) {
+        final DefaultEdge incomingEdge = (DefaultEdge) graph.incomingEdgesOf(nodeToRemove).toArray()[0];
+        final DefaultEdge outgoingEdge = (DefaultEdge) graph.outgoingEdgesOf(nodeToRemove).toArray()[0];
+
+        final UUID parent = graph.getEdgeSource(incomingEdge);
+        final UUID child = graph.getEdgeTarget(outgoingEdge);
+
+        graph.removeVertex(nodeToRemove);
+        graph.addEdge(parent, child);
+    }
+
+    public void pruneOneBranchGateways(DirectedAcyclicGraph<UUID, DefaultEdge> graph) {
+        final List<UUID> gateways = graph.vertexSet().parallelStream()
+                .filter(node -> !isTask.get(node) && graph.inDegreeOf(node) == 1 && graph.outDegreeOf(node) == 1)
+                .toList();
+
+        for (final UUID gateway : gateways) {
+            final DefaultEdge incomingEdge = graph.incomingEdgesOf(gateway).iterator().next();
+            final DefaultEdge outgoingEdge = graph.outgoingEdgesOf(gateway).iterator().next();
+
+            final UUID source = graph.getEdgeSource(incomingEdge);
+            final UUID target = graph.getEdgeTarget(outgoingEdge);
+
+            graph.removeVertex(gateway);
+            graph.addEdge(source, target);
+        }
     }
 }
